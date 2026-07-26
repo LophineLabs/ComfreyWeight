@@ -15,10 +15,10 @@ fun Configuration.compatibilityAttributes(objects: ObjectFactory) {
 }
 
 fun GradlePluginDevelopmentExtension.setupPlugin(prefix: String, op: Action<PluginDeclaration>) {
-    plugins.register("paperweight-$prefix") {
-        id = "io.papermc.paperweight." + prefix
-        displayName = "paperweight $prefix"
-        tags.set(listOf("paper", "minecraft"))
+    plugins.register("comfreyweight-$prefix") {
+        id = "fun.bm.comfreyweight." + prefix
+        displayName = "comfreyweight $prefix"
+        tags.set(listOf("paper", "minecraft", "comfreyweight"))
         op.execute(this)
     }
 }

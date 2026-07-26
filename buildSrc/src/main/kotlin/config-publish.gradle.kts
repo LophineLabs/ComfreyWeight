@@ -52,8 +52,8 @@ val sourcesJar by tasks.existing(AbstractArchiveTask::class) {
 }
 
 gradlePlugin {
-    website.set("https://github.com/PaperMC/paperweight")
-    vcsUrl.set("https://github.com/PaperMC/paperweight")
+    website.set("https://github.com/LophineLabs/ComfreyWeight")
+    vcsUrl.set("https://github.com/LophineLabs/ComfreyWeight")
 }
 
 val shadowJar by tasks.existing(ShadowJar::class) {
@@ -96,11 +96,22 @@ val shadowJar by tasks.existing(ShadowJar::class) {
     }
 }
 
+val isSnapshot = project.version.toString().endsWith("-SNAPSHOT")
+
 publishing {
     repositories {
-        maven("https://artifactory.papermc.io/artifactory/snapshots/") {
-            credentials(PasswordCredentials::class)
-            name = "paper"
+        val url = if (isSnapshot) {
+            "https://repo.bacteriawa.com/repository/maven-snapshots/"
+        } else {
+            "https://repo.bacteriawa.com/repository/maven-releases/"
+        }
+
+        maven(url) {
+            name = "Bacteriawa"
+            credentials(PasswordCredentials::class) {
+                username = System.getenv("PRIVATE_MAVEN_REPO_USERNAME")
+                password = System.getenv("PRIVATE_MAVEN_REPO_PASSWORD")
+            }
         }
     }
 
@@ -114,11 +125,11 @@ publishing {
 }
 
 fun MavenPom.pomConfig() {
-    val repoPath = "PaperMC/paperweight"
+    val repoPath = "LophineLabs/ComfreyWeight"
     val repoUrl = "https://github.com/$repoPath"
 
-    name.set("paperweight")
-    description.set("Gradle plugin for the PaperMC project")
+    name.set("comfreyweight")
+    description.set("Gradle plugin for the LophineLabs project")
     url.set(repoUrl)
     inceptionYear.set("2020")
 
@@ -141,6 +152,18 @@ fun MavenPom.pomConfig() {
             name.set("Kyle Wood")
             email.set("kyle@denwav.dev")
             url.set("https://github.com/DenWav")
+        }
+        developer {
+            id.set("Suisuroru")
+            name.set("Helvetica_Volubi")
+            email.set("suisuroru@blue-millennium.fun")
+            url.set("https://github.com/Suisuroru")
+        }
+        developer {
+            id.set("xiaoxijun")
+            name.set("Bacteria")
+            email.set("a3167717663@hotmail.com")
+            url.set("https://github.com/Bacteriawa")
         }
     }
 
