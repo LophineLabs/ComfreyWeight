@@ -1,4 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.plugin.compatibility.compatibility
 
 plugins {
     id("org.jetbrains.kotlin.jvm")
@@ -16,7 +17,7 @@ if (noRelocate) {
     }
 }
 
-val shade: Configuration by configurations.creating
+val shade = configurations.create("shade")
 configurations.implementation {
     extendsFrom(shade)
 }
@@ -24,10 +25,16 @@ configurations.implementation {
 configurations.shadowRuntimeElements {
     compatibilityAttributes(objects)
 }
+configurations.runtimeElements {
+    compatibilityAttributes(objects)
+}
 
 fun ShadowJar.configureStandard() {
     configurations = listOf(shade)
     filesMatching("META-INF/services/**") {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+    filesMatching("META-INF/*.kotlin_module") {
         duplicatesStrategy = DuplicatesStrategy.INCLUDE
     }
 
@@ -41,7 +48,7 @@ fun ShadowJar.configureStandard() {
     mergeServiceFiles()
 }
 
-val sourcesJar by tasks.existing(AbstractArchiveTask::class) {
+val sourcesJar = tasks.named<AbstractArchiveTask>("sourcesJar") {
     from(
         zipTree(project(":paperweight-lib").tasks
             .named("sourcesJar", AbstractArchiveTask::class)
@@ -54,15 +61,22 @@ val sourcesJar by tasks.existing(AbstractArchiveTask::class) {
 gradlePlugin {
     website.set("https://github.com/LophineLabs/ComfreyWeight")
     vcsUrl.set("https://github.com/LophineLabs/ComfreyWeight")
+    plugins.configureEach {
+        compatibility {
+            features {
+                configurationCache = true
+            }
+        }
+    }
 }
 
-val shadowJar by tasks.existing(ShadowJar::class) {
+val shadowJar = tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set(null as String?)
     configureStandard()
 
     inputs.property("noRelocate", noRelocate)
     if (noRelocate) {
-        return@existing
+        return@named
     }
 
     val prefix = "paper.libs"

@@ -41,14 +41,14 @@ class DevBundleTasks(
     private val coreTasks: CoreTasks,
     tasks: TaskContainer = project.tasks,
 ) {
-    val serverBundlerForDevBundle by tasks.registering<CreateBundlerJar> {
+    val serverBundlerForDevBundle = tasks.register<CreateBundlerJar>("serverBundlerForDevBundle") {
         mainClass.set(project.coreExt.mainClass)
         paperclip.from(project.configurations.named(PAPERCLIP_CONFIG))
         serverLibrariesList.set(coreTasks.extractFromBundler.flatMap { it.serverLibrariesList })
         vanillaBundlerJar.set(coreTasks.downloadServerJar.flatMap { it.outputJar })
     }
 
-    val paperclipForDevBundle by tasks.registering<CreatePaperclipJar> {
+    val paperclipForDevBundle = tasks.register<CreatePaperclipJar>("paperclipForDevBundle") {
         bundlerJar.set(serverBundlerForDevBundle.flatMap { it.outputZip })
         libraryChangesJson.set(serverBundlerForDevBundle.flatMap { it.libraryChangesJson })
         originalBundlerJar.set(coreTasks.downloadServerJar.flatMap { it.outputJar })
@@ -56,7 +56,7 @@ class DevBundleTasks(
         rootProjectName.set(project.rootProject.name)
     }
 
-    val generateDevelopmentBundle by tasks.registering<GenerateDevBundle> {
+    val generateDevelopmentBundle = tasks.register<GenerateDevBundle>("generateDevelopmentBundle") {
         group = "bundling"
 
         devBundleFile.set(project.layout.buildDirectory.file("libs/paperweight-development-bundle-${project.version}.zip"))
