@@ -1,8 +1,8 @@
-## paperweight
+## comfreyweight
 
-`paperweight` consists of three Gradle plugins:
-- `paperweight-core`: Used to build Paper
-- `paperweight-patcher`: Used to create forks of Paper or other `paperweight-patcher`-based forks
+`comfreyweight` consists of three Gradle plugins:
+- `paperweight-core`: Used to build Lophine
+- `paperweight-patcher`: Used to create forks of Lophine or other `paperweight-patcher`-based forks
 - `paperweight-userdev`: Used to develop internals plugins using Mojang mappings
 
 ### How to use this for testing:
@@ -55,5 +55,3 @@ with `ktlint` style settings and to automatically format this project's code bef
 > as unstable for a bit until the next major version, so you should probably disable the "Unstable API Usages" inspection
 > in IntelliJ as well. The easiest way to do this is just find any place where an "unstable API" is used (tons in
 > `Paperweight.kt`) and disable the inspection from there.
-
-[![CI powered by namespace badge](https://papermc.io/assets/misc/namespace-oss-badge.svg?project=paperweight)](https://namespace.so/github-actions/?utm_source=oss&utm_campaign=papermc)
