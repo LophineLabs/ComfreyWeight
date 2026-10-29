@@ -276,7 +276,7 @@ class MinecraftPatchingTasks(
         }
 
         tasks.register<ApplyFeaturePatches>("continue${namePart}FeaturePatches") {
-            group()
+            group = "continue"
             description = "Continues applying $configName Minecraft feature patches after a failed apply. " +
                 "Commits the current working tree using the failed patch metadata, then applies remaining patches."
             repo.set(outputSrc)

@@ -169,7 +169,7 @@ class PatchingTasks(
         }
 
         tasks.register<ApplyFeaturePatches>("continue${namePart}FeaturePatches") {
-            group = taskGroup
+            group = "continue"
             description = "Continues applying $patchSetName feature patches after a failed apply. " +
                 "Commits the current working tree using the failed patch metadata, then applies remaining patches."
             repo.set(outputDir)
