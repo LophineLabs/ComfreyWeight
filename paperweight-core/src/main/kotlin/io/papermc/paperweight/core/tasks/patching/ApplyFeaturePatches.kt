@@ -115,14 +115,29 @@ abstract class ApplyFeaturePatches : ControllableOutputTask() {
      * changes without committing, this commits the current working tree using the original patch
      * metadata and then applies the remaining patches.
      */
-    fun continueApplyingPatches() {
+    fun continueApplyingPatches(skipIfIdle: Boolean = false) {
         Git.checkForGit()
 
-        if (!patches.isPresent) {
+        val taskLabel = continueTaskName.orNull ?: name
+        if (!patches.isPresent || !repo.isPresent) {
+            if (skipIfIdle) {
+                logger.lifecycle("Skipping $taskLabel: patches directory or repo is not set")
+                return
+            }
             throw PaperweightException("Cannot continue applying feature patches: patches directory is not set")
         }
 
         val repoPath = repo.path
+        if (!repoPath.exists() || loadFeaturePatchContinueState(repoPath) == null) {
+            if (skipIfIdle) {
+                logger.lifecycle("Skipping $taskLabel: no interrupted feature patch apply")
+                return
+            }
+            throw PaperweightException(
+                "No interrupted feature patch apply to continue. Run the apply feature patches task first."
+            )
+        }
+
         val git = Git(repoPath)
         git("am", "--quit").runSilently(silenceErr = true)
         val state = loadFeaturePatchContinueState(repoPath)

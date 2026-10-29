@@ -111,6 +111,9 @@ class UpstreamConfigTasks(
     val patchingTasks: Map<UpstreamConfig.DirectoryPatchSet, PatchingTasks> = upstreamCfg.directoryPatchSets
         .associateWith { cfg -> makePatchingTasks(cfg) }
 
+    val continueFeaturePatchesNames: List<String>
+        get() = patchingTasks.values.mapNotNull { it.continueFeaturePatchesName }
+
     private fun makePatchingTasks(cfg: UpstreamConfig.DirectoryPatchSet): PatchingTasks {
         val base = if (cfg is UpstreamConfig.RepoPatchSet) {
             createBaseFromRepo(cfg)

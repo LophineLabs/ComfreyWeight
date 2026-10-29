@@ -103,6 +103,7 @@ class PatchingTasks(
     val fixupFilePatchesName = "fixup${namePart}FilePatches"
     val rebuildFeaturePatchesName = "rebuild${namePart}FeaturePatches"
     val rebuildPatchesName = "rebuild${namePart}Patches"
+    val continueFeaturePatchesName: String? = if (readOnly) null else "continue${namePart}FeaturePatches"
 
     init {
         if (!readOnly) {

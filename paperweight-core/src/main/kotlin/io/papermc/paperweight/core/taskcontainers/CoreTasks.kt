@@ -29,6 +29,7 @@ import io.papermc.paperweight.core.tasks.ImportLibraryFiles
 import io.papermc.paperweight.core.tasks.IndexLibraryFiles
 import io.papermc.paperweight.core.tasks.SetupMinecraftSources
 import io.papermc.paperweight.core.tasks.SetupPaperScript
+import `fun`.bm.comfreyweight.core.tasks.patching.ContinueAllPatches
 import io.papermc.paperweight.core.util.coreExt
 import io.papermc.paperweight.tasks.*
 import io.papermc.paperweight.tasks.mache.DecompileJar
@@ -194,6 +195,9 @@ class CoreTasks(
             paperOutputRoot,
         )
 
+        val continueNames = mutableListOf<String>()
+        paperPatchingTasks.continueFeaturePatchesName?.let { continueNames.add(it) }
+
         // Setup patching tasks for forks
         val patchingTasks: MutableMap<String, Pair<MinecraftPatchingTasks, UpstreamConfigTasks>> = mutableMapOf()
         fun makePatchingTasks(cfg: ForkConfig): Pair<MinecraftPatchingTasks, UpstreamConfigTasks> {
@@ -254,6 +258,9 @@ class CoreTasks(
             )
 
             if (activeFork) {
+                serverTasks.continueFeaturePatchesName?.let { continueNames.add(it) }
+                continueNames.addAll(upstreamConfigTasks.continueFeaturePatchesNames)
+
                 // setup output name conventions
                 project.coreExt.bundlerJarName.convention(cfg.name)
 
@@ -315,6 +322,13 @@ class CoreTasks(
             forkPatchingTaskOrder().forEach { config ->
                 patchingTasks[config.name] = makePatchingTasks(config)
             }
+        }
+
+        project.tasks.register<ContinueAllPatches>("continueAll") {
+            group = "continue"
+            description = "Tries each continue task in order, skipping patch sets with no interrupted apply"
+            continueTaskNames.set(continueNames)
+            doNotTrackState("Always run when requested")
         }
     }
 
