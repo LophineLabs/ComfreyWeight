@@ -1,0 +1,18 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Patch Author <patch@example.com>
+Date: Sun, 20 Oct 2024 09:24:36 +0200
+Subject: [PATCH] Change b
+
+
+diff --git a/Test.java b/Test.java
+index 9e2dd77e323acc5c6b073a85b0341c81e06025ba..8c0597e205901b14a7b943be1a3d1e43f95121bc 100644
+--- a/Test.java
++++ b/Test.java
+@@ -4,6 +4,6 @@ public class Test {
+     }
+ 
+     public String b() {
+-        return "b";
++        return "b3";
+     }
+ }

@@ -1,0 +1,16 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Continue Author <continue@example.com>
+Date: Sun, 20 Oct 2024 09:24:36 +0200
+Subject: [PATCH] Broken patch
+
+Keep the original patch metadata.
+
+diff --git a/Test.java b/Test.java
+index 1111111111111111111111111111111111111111..2222222222222222222222222222222222222222 100644
+--- a/Test.java
++++ b/Test.java
+@@ -1,5 +1,5 @@
+ public class Test {
+-    public String doesNotExist() { return "nope"; }
++    public String doesNotExist() { return "still nope"; }
+ }

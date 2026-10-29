@@ -199,6 +199,10 @@ class MinecraftPatchingTasks(
             }
         }
 
+        applyFeaturePatches.configure {
+            continueTaskName.set("continue${namePart}FeaturePatches")
+        }
+
         val rebuildSourcePatches = tasks.register<RebuildFilePatches>(rebuildSourcePatchesName) {
             group()
             description = "Rebuilds $configName file patches to the Minecraft sources"
@@ -269,6 +273,18 @@ class MinecraftPatchingTasks(
                 "Useful when updating to a new Minecraft version."
             gitFilePatches = true
             moveFailedGitPatchesToRejects = true
+        }
+
+        tasks.register<ApplyFeaturePatches>("continue${namePart}FeaturePatches") {
+            group()
+            description = "Continues applying $configName Minecraft feature patches after a failed apply. " +
+                "Commits the current working tree using the failed patch metadata, then applies remaining patches."
+            repo.set(outputSrc)
+            patches.set(featurePatchDir.fileExists())
+            continueApply.set(true)
+            continueTaskName.set("continue${namePart}FeaturePatches")
+            printOutput.set(true)
+            doNotTrackState("Always run when requested")
         }
     }
 }

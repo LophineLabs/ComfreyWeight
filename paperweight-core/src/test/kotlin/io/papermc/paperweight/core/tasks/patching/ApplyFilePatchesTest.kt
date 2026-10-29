@@ -40,7 +40,7 @@ class ApplyFilePatchesTest : TaskTest() {
 
     @Test
     fun `should apply patches`(@TempDir tempDir: Path) {
-        val testResource = Path.of("src/test/resources/apply_patches")
+        val testResource = Path.of("src/test/resources/apply_patches/file_patches")
         val testInput = testResource.resolve("input")
 
         val input = setupDir(tempDir, testInput, "base").toFile()
