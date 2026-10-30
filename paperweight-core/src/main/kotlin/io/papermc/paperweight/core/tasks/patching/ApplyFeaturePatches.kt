@@ -62,12 +62,16 @@ abstract class ApplyFeaturePatches : ControllableOutputTask() {
     abstract val continueApply: Property<Boolean>
 
     @get:Internal
+    abstract val dropCurrent: Property<Boolean>
+
+    @get:Internal
     abstract val continueTaskName: Property<String>
 
     override fun init() {
         printOutput.convention(false).finalizeValueOnRead()
         verbose.convention(false)
         continueApply.convention(false)
+        dropCurrent.convention(false)
     }
 
     @TaskAction
@@ -75,7 +79,7 @@ abstract class ApplyFeaturePatches : ControllableOutputTask() {
         Git.checkForGit()
 
         if (continueApply.get()) {
-            continueApplyingPatches()
+            continueApplyingPatches(dropCurrent = dropCurrent.get())
             return
         }
 
@@ -115,7 +119,7 @@ abstract class ApplyFeaturePatches : ControllableOutputTask() {
      * changes without committing, this commits the current working tree using the original patch
      * metadata and then applies the remaining patches.
      */
-    fun continueApplyingPatches(skipIfIdle: Boolean = false) {
+    fun continueApplyingPatches(skipIfIdle: Boolean = false, dropCurrent: Boolean = false) {
         Git.checkForGit()
 
         val taskLabel = continueTaskName.orNull ?: name
@@ -151,11 +155,17 @@ abstract class ApplyFeaturePatches : ControllableOutputTask() {
             throw PaperweightException("Failed patch ${state.failedPatch} does not exist in $patchDir")
         }
 
-        val dirty = git("status", "--porcelain").getText()
-        if (dirty.isNotBlank()) {
-            commitWithPatchMetadata(git, repoPath, failedPatch)
+        if (dropCurrent) {
+            logger.lifecycle("Dropping failed patch ${state.failedPatch}")
+            git("reset", "--hard", "HEAD").runSilently(silenceErr = true)
+            git("clean", "-fd").runSilently(silenceErr = true)
         } else {
-            logger.lifecycle("No local changes; skipping commit for ${state.failedPatch}")
+            val dirty = git("status", "--porcelain").getText()
+            if (dirty.isNotBlank()) {
+                commitWithPatchMetadata(git, repoPath, failedPatch)
+            } else {
+                logger.lifecycle("No local changes; skipping commit for ${state.failedPatch}")
+            }
         }
 
         val remaining = state.remainingPatches.map { name ->

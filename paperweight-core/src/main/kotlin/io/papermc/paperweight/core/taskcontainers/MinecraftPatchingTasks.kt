@@ -287,5 +287,17 @@ class MinecraftPatchingTasks(
             printOutput.set(true)
             doNotTrackState("Always run when requested")
         }
+
+        tasks.register<ApplyFeaturePatches>("continueDropCurrent${namePart}FeaturePatches") {
+            group = "continue"
+            description = "Drops the currently failed $configName Minecraft feature patch and continues applying remaining patches."
+            repo.set(outputSrc)
+            patches.set(featurePatchDir.fileExists())
+            continueApply.set(true)
+            dropCurrent.set(true)
+            continueTaskName.set("continueDropCurrent${namePart}FeaturePatches")
+            printOutput.set(true)
+            doNotTrackState("Always run when requested")
+        }
     }
 }
