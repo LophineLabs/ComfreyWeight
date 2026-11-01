@@ -30,6 +30,8 @@ import io.papermc.paperweight.core.tasks.IndexLibraryFiles
 import io.papermc.paperweight.core.tasks.SetupMinecraftSources
 import io.papermc.paperweight.core.tasks.SetupPaperScript
 import `fun`.bm.comfreyweight.core.tasks.patching.ContinueAllPatches
+import `fun`.bm.comfreyweight.core.tasks.patching.FeaturePatchContinueTask
+import `fun`.bm.comfreyweight.core.tasks.patching.ListContinuablePatches
 import io.papermc.paperweight.core.util.coreExt
 import io.papermc.paperweight.tasks.*
 import io.papermc.paperweight.tasks.mache.DecompileJar
@@ -329,11 +331,22 @@ class CoreTasks(
             }
         }
 
+        fun addContinueTargets(continueTask: FeaturePatchContinueTask) {
+            continueMinecraftTasks.forEach { it.addContinueTarget(continueTask) }
+            continueUpstreamTasks.forEach { it.addContinueTargets(continueTask) }
+        }
+
+        val listContinuable = project.tasks.register<ListContinuablePatches>("listContinuable") {
+            group = "continue"
+            description = "Lists feature-patch continue tasks that currently have an interrupted apply"
+            addContinueTargets(this)
+            doNotTrackState("Always run when requested")
+        }
         project.tasks.register<ContinueAllPatches>("continueAll") {
             group = "continue"
             description = "Tries each continue task in order, skipping patch sets with no interrupted apply"
-            continueMinecraftTasks.forEach { it.addContinueTarget(this) }
-            continueUpstreamTasks.forEach { it.addContinueTargets(this) }
+            addContinueTargets(this)
+            finalizedBy(listContinuable)
             doNotTrackState("Always run when requested")
         }
     }

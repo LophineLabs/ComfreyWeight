@@ -24,12 +24,14 @@ import org.junit.jupiter.api.io.TempDir
 class ContinueAllPatchesTest : TaskTest() {
     private lateinit var applyTask: ApplyFeaturePatches
     private lateinit var continueAll: ContinueAllPatches
+    private lateinit var listContinuable: ListContinuablePatches
 
     @BeforeTest
     fun setup() {
         val project = setupProject()
         applyTask = project.tasks.register("applyFeaturePatches", ApplyFeaturePatches::class).get()
         continueAll = project.tasks.register("continueAll", ContinueAllPatches::class).get()
+        listContinuable = project.tasks.register("listContinuable", ListContinuablePatches::class).get()
     }
 
     @Test
@@ -52,7 +54,12 @@ class ContinueAllPatchesTest : TaskTest() {
         val patchDir = continueAll.objects.directoryProperty().fileValue(patches.toFile())
         continueAll.addTarget("continueFeaturePatches", interrupted, patchDir)
         continueAll.addTarget("continueIdleFeaturePatches", idle, patchDir)
+        listContinuable.addTarget("continueFeaturePatches", interrupted, patchDir)
+        listContinuable.addTarget("continueIdleFeaturePatches", idle, patchDir)
+
+        assertEquals(listOf("continueFeaturePatches"), listContinuable.findContinuable().map { it.name })
         continueAll.run()
+        assertTrue(listContinuable.findContinuable().isEmpty())
 
         assertEquals(testResource.resolve("output/continued/Test.java").readText(), interrupted.resolve("Test.java").readText())
         assertFalse(interrupted.resolve(".git/paperweight-feature-patch-continue.json").exists())
@@ -62,6 +69,32 @@ class ContinueAllPatchesTest : TaskTest() {
         assertEquals(testResource.resolve("input/base/Test.java").readText(), idle.resolve("Test.java").readText())
         assertEquals("Test", Git(idle)("log", "-1", "--format=%s").getText().trim())
         assertFalse(idle.resolve(".git/paperweight-feature-patch-continue.json").exists())
+    }
+
+    @Test
+    fun `should list interrupted continue tasks and skip idle sets`(@TempDir tempDir: Path) {
+        val interrupted = createFeatureRepo(tempDir.resolve("interrupted"))
+        val idle = createFeatureRepo(tempDir.resolve("idle"))
+        val patches = tempDir.resolve("patches")
+        testInput.resolve("patches").copyRecursivelyTo(patches)
+
+        configureApply(interrupted, patches)
+        applyTask.continueTaskName.set("continueFeaturePatches")
+
+        val ex = assertFailsWith<PaperweightException> { applyTask.run() }
+        assertContains(ex.message!!, "0002-Broken.patch")
+
+        val patchDir = listContinuable.objects.directoryProperty().fileValue(patches.toFile())
+        listContinuable.addTarget("continueFeaturePatches", interrupted, patchDir)
+        listContinuable.addTarget("continueIdleFeaturePatches", idle, patchDir)
+
+        val continuable = listContinuable.findContinuable()
+        assertEquals(1, continuable.size)
+        assertEquals("continueFeaturePatches", continuable.single().name)
+        assertEquals("0002-Broken.patch", continuable.single().failedPatch)
+        assertEquals(1, continuable.single().remaining)
+
+        listContinuable.run()
     }
 
     private fun configureApply(repo: Path, patches: Path) {
