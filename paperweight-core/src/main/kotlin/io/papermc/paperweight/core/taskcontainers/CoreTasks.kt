@@ -195,8 +195,11 @@ class CoreTasks(
             paperOutputRoot,
         )
 
-        val continueNames = mutableListOf<String>()
-        paperPatchingTasks.continueFeaturePatchesName?.let { continueNames.add(it) }
+        val continueMinecraftTasks = mutableListOf<MinecraftPatchingTasks>()
+        val continueUpstreamTasks = mutableListOf<UpstreamConfigTasks>()
+        if (paperPatchingTasks.continueFeaturePatchesName != null) {
+            continueMinecraftTasks.add(paperPatchingTasks)
+        }
 
         // Setup patching tasks for forks
         val patchingTasks: MutableMap<String, Pair<MinecraftPatchingTasks, UpstreamConfigTasks>> = mutableMapOf()
@@ -258,8 +261,10 @@ class CoreTasks(
             )
 
             if (activeFork) {
-                serverTasks.continueFeaturePatchesName?.let { continueNames.add(it) }
-                continueNames.addAll(upstreamConfigTasks.continueFeaturePatchesNames)
+                if (serverTasks.continueFeaturePatchesName != null) {
+                    continueMinecraftTasks.add(serverTasks)
+                }
+                continueUpstreamTasks.add(upstreamConfigTasks)
 
                 // setup output name conventions
                 project.coreExt.bundlerJarName.convention(cfg.name)
@@ -327,7 +332,8 @@ class CoreTasks(
         project.tasks.register<ContinueAllPatches>("continueAll") {
             group = "continue"
             description = "Tries each continue task in order, skipping patch sets with no interrupted apply"
-            continueTaskNames.set(continueNames)
+            continueMinecraftTasks.forEach { it.addContinueTarget(this) }
+            continueUpstreamTasks.forEach { it.addContinueTargets(this) }
             doNotTrackState("Always run when requested")
         }
     }

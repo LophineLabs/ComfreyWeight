@@ -28,6 +28,7 @@ import io.papermc.paperweight.util.*
 import java.nio.file.Path
 import kotlin.io.path.*
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
@@ -109,7 +110,7 @@ abstract class ApplyFeaturePatches : ControllableOutputTask() {
         git("reset", "--hard", "file").executeSilently(silenceErr = true)
         git("gc").runSilently(silenceErr = true)
 
-        applyGitPatches(git, "server repo", repoPath, loadPatchFiles(patches.path), printOutput.get(), verbose.get())
+        operations().applyGitPatches(git, "server repo", repoPath, loadPatchFiles(patches.path))
     }
 
     /**
@@ -120,21 +121,58 @@ abstract class ApplyFeaturePatches : ControllableOutputTask() {
      * metadata and then applies the remaining patches.
      */
     fun continueApplyingPatches(skipIfIdle: Boolean = false, dropCurrent: Boolean = false) {
+        operations().continueApplyingPatches(
+            repo = repo.orNull?.path,
+            patches = patches.orNull?.path,
+            skipIfIdle = skipIfIdle,
+            dropCurrent = dropCurrent,
+        )
+    }
+
+    private fun operations(): FeaturePatchOperations = FeaturePatchOperations(
+        logger = logger,
+        continueTaskName = continueTaskName.orNull ?: name,
+        printOutput = printOutput.get(),
+        verbose = verbose.get(),
+    )
+
+    companion object {
+        const val PATCH_APPLY_FAILED = ".git/patch-apply-failed"
+        const val CONTINUE_STATE_FILE = "paperweight-feature-patch-continue.json"
+    }
+}
+
+class FeaturePatchOperations(
+    private val logger: Logger,
+    private val continueTaskName: String,
+    private val printOutput: Boolean,
+    private val verbose: Boolean,
+) {
+    /**
+     * Continues a feature-patch apply after a failure.
+     *
+     * [skipIfIdle] skips patch sets with no interrupted apply instead of failing, so a single
+     * aggregator can try every continue target without querying other Gradle tasks.
+     */
+    fun continueApplyingPatches(
+        repo: Path?,
+        patches: Path?,
+        skipIfIdle: Boolean = false,
+        dropCurrent: Boolean = false,
+    ) {
         Git.checkForGit()
 
-        val taskLabel = continueTaskName.orNull ?: name
-        if (!patches.isPresent || !repo.isPresent) {
+        if (repo == null || patches == null) {
             if (skipIfIdle) {
-                logger.lifecycle("Skipping $taskLabel: patches directory or repo is not set")
+                logger.lifecycle("Skipping $continueTaskName: patches directory or repo is not set")
                 return
             }
             throw PaperweightException("Cannot continue applying feature patches: patches directory is not set")
         }
 
-        val repoPath = repo.path
-        if (!repoPath.exists() || loadFeaturePatchContinueState(repoPath) == null) {
+        if (!repo.exists() || loadFeaturePatchContinueState(repo) == null) {
             if (skipIfIdle) {
-                logger.lifecycle("Skipping $taskLabel: no interrupted feature patch apply")
+                logger.lifecycle("Skipping $continueTaskName: no interrupted feature patch apply")
                 return
             }
             throw PaperweightException(
@@ -142,17 +180,16 @@ abstract class ApplyFeaturePatches : ControllableOutputTask() {
             )
         }
 
-        val git = Git(repoPath)
+        val git = Git(repo)
         git("am", "--quit").runSilently(silenceErr = true)
-        val state = loadFeaturePatchContinueState(repoPath)
+        val state = loadFeaturePatchContinueState(repo)
             ?: throw PaperweightException(
                 "No interrupted feature patch apply to continue. Run the apply feature patches task first."
             )
 
-        val patchDir = patches.path
-        val failedPatch = patchDir.resolve(state.failedPatch)
+        val failedPatch = patches.resolve(state.failedPatch)
         if (!failedPatch.isRegularFile()) {
-            throw PaperweightException("Failed patch ${state.failedPatch} does not exist in $patchDir")
+            throw PaperweightException("Failed patch ${state.failedPatch} does not exist in $patches")
         }
 
         if (dropCurrent) {
@@ -162,39 +199,37 @@ abstract class ApplyFeaturePatches : ControllableOutputTask() {
         } else {
             val dirty = git("status", "--porcelain").getText()
             if (dirty.isNotBlank()) {
-                commitWithPatchMetadata(git, repoPath, failedPatch)
+                commitWithPatchMetadata(git, repo, failedPatch)
             } else {
                 logger.lifecycle("No local changes; skipping commit for ${state.failedPatch}")
             }
         }
 
         val remaining = state.remainingPatches.map { name ->
-            val patch = patchDir.resolve(name)
+            val patch = patches.resolve(name)
             if (!patch.isRegularFile()) {
-                throw PaperweightException("Remaining patch $name does not exist in $patchDir")
+                throw PaperweightException("Remaining patch $name does not exist in $patches")
             }
             patch
         }
 
-        clearFeaturePatchContinueState(repoPath)
+        clearFeaturePatchContinueState(repo)
 
         if (remaining.isEmpty()) {
-            if (printOutput.get()) {
+            if (printOutput) {
                 logger.lifecycle("No remaining patches")
             }
             return
         }
 
-        applyGitPatches(git, "server repo", repoPath, remaining, printOutput.get(), verbose.get())
+        applyGitPatches(git, "server repo", repo, remaining)
     }
 
-    private fun applyGitPatches(
+    fun applyGitPatches(
         git: Git,
         target: String,
         outputDir: Path,
         patches: List<Path>,
-        printOutput: Boolean,
-        verbose: Boolean,
     ) {
         if (printOutput) {
             logger.lifecycle("Applying patches to $target...")
@@ -240,12 +275,7 @@ abstract class ApplyFeaturePatches : ControllableOutputTask() {
             logger.error("***   Failed to apply patch ${patch.fileName}")
             logger.error("***   The failed patch has been rolled back.")
             logger.error("***   Manually apply the changes from ${patch.fileName}, then run:")
-            val continueName = continueTaskName.orNull
-            if (continueName != null) {
-                logger.error("***     ./gradlew $continueName")
-            } else {
-                logger.error("***     the continue feature patches task")
-            }
+            logger.error("***     ./gradlew $continueTaskName")
             logger.error("***   Do not commit; the continue task commits the current working tree")
             logger.error("***   using the original patch metadata.")
 
@@ -293,38 +323,33 @@ abstract class ApplyFeaturePatches : ControllableOutputTask() {
         git("reset", "--hard", "HEAD").runSilently(silenceErr = true)
         git("clean", "-fd").runSilently(silenceErr = true)
     }
+}
 
-    private fun loadPatchFiles(patchDir: Path): List<Path> {
-        return patchDir.useDirectoryEntries("*.patch") { it.toList() }
-            .sortedBy { it.fileName.toString() }
-    }
+internal fun loadPatchFiles(patchDir: Path): List<Path> {
+    return patchDir.useDirectoryEntries("*.patch") { it.toList() }
+        .sortedBy { it.fileName.toString() }
+}
 
-    private fun saveFeaturePatchContinueState(outputDir: Path, state: FeaturePatchContinueState) {
-        outputDir.resolve(PATCH_APPLY_FAILED).writeText("1")
-        featurePatchContinueStateFile(outputDir).writeText(gson.toJson(state))
-    }
+internal fun saveFeaturePatchContinueState(outputDir: Path, state: FeaturePatchContinueState) {
+    outputDir.resolve(ApplyFeaturePatches.PATCH_APPLY_FAILED).writeText("1")
+    featurePatchContinueStateFile(outputDir).writeText(gson.toJson(state))
+}
 
-    private fun loadFeaturePatchContinueState(outputDir: Path): FeaturePatchContinueState? {
-        val stateFile = featurePatchContinueStateFile(outputDir)
-        if (!stateFile.isRegularFile()) {
-            return null
-        }
-        return gson.fromJson(stateFile)
+internal fun loadFeaturePatchContinueState(outputDir: Path): FeaturePatchContinueState? {
+    val stateFile = featurePatchContinueStateFile(outputDir)
+    if (!stateFile.isRegularFile()) {
+        return null
     }
+    return gson.fromJson(stateFile)
+}
 
-    private fun clearFeaturePatchContinueState(outputDir: Path) {
-        outputDir.resolve(PATCH_APPLY_FAILED).deleteForcefully()
-        featurePatchContinueStateFile(outputDir).deleteForcefully()
-    }
+internal fun clearFeaturePatchContinueState(outputDir: Path) {
+    outputDir.resolve(ApplyFeaturePatches.PATCH_APPLY_FAILED).deleteForcefully()
+    featurePatchContinueStateFile(outputDir).deleteForcefully()
+}
 
-    private fun featurePatchContinueStateFile(outputDir: Path): Path {
-        return outputDir.resolve(".git").resolve(CONTINUE_STATE_FILE)
-    }
-
-    companion object {
-        const val PATCH_APPLY_FAILED = ".git/patch-apply-failed"
-        const val CONTINUE_STATE_FILE = "paperweight-feature-patch-continue.json"
-    }
+internal fun featurePatchContinueStateFile(outputDir: Path): Path {
+    return outputDir.resolve(".git").resolve(ApplyFeaturePatches.CONTINUE_STATE_FILE)
 }
 
 internal data class FeaturePatchContinueState(

@@ -28,6 +28,7 @@ import io.papermc.paperweight.core.tasks.FilterRepo
 import io.papermc.paperweight.core.tasks.RunNestedBuild
 import io.papermc.paperweight.core.tasks.patching.ApplySingleFilePatches
 import io.papermc.paperweight.core.tasks.patching.RebuildSingleFilePatches
+import `fun`.bm.comfreyweight.core.tasks.patching.ContinueAllPatches
 import io.papermc.paperweight.util.*
 import kotlin.io.path.*
 import org.gradle.api.Project
@@ -113,6 +114,15 @@ class UpstreamConfigTasks(
 
     val continueFeaturePatchesNames: List<String>
         get() = patchingTasks.values.mapNotNull { it.continueFeaturePatchesName }
+
+    fun addContinueTargets(continueAll: ContinueAllPatches) {
+        patchingTasks.values.forEach { tasks ->
+            val name = tasks.continueFeaturePatchesName ?: return@forEach
+            val repo = tasks.continueFeaturePatchesRepo ?: return@forEach
+            val patches = tasks.continueFeaturePatchesDir ?: return@forEach
+            continueAll.addTarget(name, repo, patches)
+        }
+    }
 
     private fun makePatchingTasks(cfg: UpstreamConfig.DirectoryPatchSet): PatchingTasks {
         val base = if (cfg is UpstreamConfig.RepoPatchSet) {

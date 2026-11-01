@@ -30,6 +30,7 @@ import io.papermc.paperweight.core.tasks.patching.ApplyFilePatches
 import io.papermc.paperweight.core.tasks.patching.ApplyFilePatchesFuzzy
 import io.papermc.paperweight.core.tasks.patching.FixupFilePatches
 import io.papermc.paperweight.core.tasks.patching.RebuildFilePatches
+import `fun`.bm.comfreyweight.core.tasks.patching.ContinueAllPatches
 import io.papermc.paperweight.tasks.*
 import io.papermc.paperweight.util.*
 import io.papermc.paperweight.util.constants.*
@@ -137,6 +138,15 @@ class MinecraftPatchingTasks(
     val rebuildFeaturePatchesName = "rebuild${namePart}FeaturePatches"
     val rebuildPatchesName = "rebuild${namePart}Patches"
     val continueFeaturePatchesName: String? = if (readOnly) null else "continue${namePart}FeaturePatches"
+    val continueFeaturePatchesRepo: Path? = if (readOnly) null else outputSrc
+    val continueFeaturePatchesDir: DirectoryProperty? = if (readOnly) null else featurePatchDir
+
+    fun addContinueTarget(continueAll: ContinueAllPatches) {
+        val name = continueFeaturePatchesName ?: return
+        val repo = continueFeaturePatchesRepo ?: return
+        val patches = continueFeaturePatchesDir ?: return
+        continueAll.addTarget(name, repo, patches)
+    }
 
     init {
         if (!readOnly) {

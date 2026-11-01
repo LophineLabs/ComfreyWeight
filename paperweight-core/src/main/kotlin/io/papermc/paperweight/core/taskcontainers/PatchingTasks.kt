@@ -104,6 +104,8 @@ class PatchingTasks(
     val rebuildFeaturePatchesName = "rebuild${namePart}FeaturePatches"
     val rebuildPatchesName = "rebuild${namePart}Patches"
     val continueFeaturePatchesName: String? = if (readOnly) null else "continue${namePart}FeaturePatches"
+    val continueFeaturePatchesRepo: Path? = if (readOnly) null else outputDir
+    val continueFeaturePatchesDir: DirectoryProperty? = if (readOnly) null else featurePatchDir
 
     init {
         if (!readOnly) {
