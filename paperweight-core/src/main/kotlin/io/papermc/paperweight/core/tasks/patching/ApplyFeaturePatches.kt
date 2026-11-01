@@ -142,7 +142,7 @@ abstract class ApplyFeaturePatches : ControllableOutputTask() {
     }
 }
 
-class FeaturePatchOperations(
+internal class FeaturePatchOperations(
     private val logger: Logger,
     private val continueTaskName: String,
     private val printOutput: Boolean,

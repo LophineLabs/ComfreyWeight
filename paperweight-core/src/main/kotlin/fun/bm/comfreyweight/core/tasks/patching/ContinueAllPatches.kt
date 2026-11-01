@@ -2,6 +2,7 @@ package `fun`.bm.comfreyweight.core.tasks.patching
 
 import io.papermc.paperweight.core.tasks.patching.FeaturePatchOperations
 import io.papermc.paperweight.tasks.BaseTask
+import io.papermc.paperweight.util.fileExists
 import io.papermc.paperweight.util.path
 import java.nio.file.Path
 import org.gradle.api.file.DirectoryProperty
@@ -44,7 +45,7 @@ abstract class ContinueAllPatches : BaseTask() {
         val target = objects.newInstance(ContinueTarget::class.java)
         target.name.set(name)
         target.repo.set(repo.toFile())
-        target.patches.set(patches)
+        target.patches.set(patches.fileExists())
         targets.add(target)
     }
 
